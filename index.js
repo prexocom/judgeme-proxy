@@ -8,6 +8,8 @@ dotenv.config();
 
 const cache = new NodeCache({ stdTTL: 600 }); // 10 min cache
 
+const reviewSummaryRoutes = require('./routes/review-summary');
+
 app.get('/', (req, res) => {
   res.send('Judge.me proxy is live!');
 });
@@ -74,6 +76,9 @@ app.get('/judgeme-reviews', async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch reviews' });
   }
 });
+
+// Register the review summary route
+app.use(reviewSummaryRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
