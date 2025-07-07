@@ -6,6 +6,10 @@ const NodeCache = require('node-cache');
 const app = express();
 dotenv.config();
 
+const cachedSummaryRoute = require("./routes/cached-summary");
+app.use(cachedSummaryRoute);
+
+
 const cache = new NodeCache({ stdTTL: 600 }); // 10 min cache
 
 const reviewSummaryRoutes = require('./routes/review-summary');
