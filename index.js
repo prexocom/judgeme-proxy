@@ -9,6 +9,9 @@ dotenv.config();
 const cachedSummaryRoute = require("./routes/cached-summary");
 app.use(cachedSummaryRoute);
 
+const cronTriggerRoute = require("./routes/cron-trigger");
+app.use("/", cronTriggerRoute);
+
 
 const cache = new NodeCache({ stdTTL: 600 }); // 10 min cache
 
