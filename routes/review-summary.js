@@ -42,9 +42,9 @@ router.get("/review-summary", async (req, res) => {
             role: "user",
             content: `Summarize the customer opinions from the following 5-star reviews of a product.
 
-Capture what people like most, mention anything they consistently praise, and briefly note any mixed experiences. Keep it short, clear, and neutral. Write as a short paragraph (not bullet points).
+            Capture what people like most, mention anything they consistently praise, and briefly note any mixed experiences. Keep it short, clear, and neutral. Write as a short paragraph (not bullet points).
 
-${combinedText}`
+            ${combinedText}`
           }
         ],
         temperature: 0.7,
