@@ -32,7 +32,7 @@ router.get("/review-summary", async (req, res) => {
 
     console.log("📝 Review sample:", combinedText.slice(0, 300));
 
-    // Step 4: Ask Groq to write a paragraph-style summary
+    // Step 4: Ask Groq to summarize in a short, clean tone
     const response = await axios.post(
       "https://api.groq.com/openai/v1/chat/completions",
       {
@@ -40,15 +40,18 @@ router.get("/review-summary", async (req, res) => {
         messages: [
           {
             role: "user",
-            content: `Summarize the customer opinions from the following 5-star reviews of a product.
+            content: `Summarize these 5-star customer reviews in 2-3 concise sentences max 50 words.
 
-            Capture what people like most, mention anything they consistently praise, and briefly note any mixed experiences. Keep it short, clear, and neutral. Write as a short paragraph (not bullet points).
+            Capture what customers like most, mention any mixed or varied feedback briefly, and note overall impressions or typical uses. Write in a clear, neutral, and helpful style similar to Amazon review summaries, avoiding hype or vague praise.
+
+            Return only the summary—no intros, conclusions, or extra text.
 
             ${combinedText}`
+
           }
         ],
-        temperature: 0.7,
-        max_tokens: 300
+        temperature: 0.5,
+        max_tokens: 70
       },
       {
         headers: {
@@ -59,8 +62,8 @@ router.get("/review-summary", async (req, res) => {
     );
 
     const summaryText = response.data.choices[0].message.content.trim();
-
     res.json({ summary: summaryText });
+
   } catch (err) {
     console.error("❌ Error generating summary:");
     if (err.response?.data) {
