@@ -1,38 +1,46 @@
-// 1. Import dependencies
-const fs = require("fs");
-const path = require("path");
 const axios = require("axios");
 require("dotenv").config();
 
-// 2. Constants
+const BIN_ID = process.env.JSONBIN_BIN_ID;
+const BIN_API_KEY = process.env.JSONBIN_API_KEY;
+const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
 const SHOP_DOMAIN = process.env.SHOP_DOMAIN;
 const ADMIN_TOKEN = process.env.SHOPIFY_ADMIN_TOKEN;
 const PROXY_BASE_URL = process.env.PROXY_BASE_URL;
-const CACHE_PATH = path.join(__dirname, "../cache/review-summary-cache.json");
 
-// 3. Utility functions
-function loadCache() {
-  if (!fs.existsSync(CACHE_PATH)) return {};
-  return JSON.parse(fs.readFileSync(CACHE_PATH, "utf-8"));
-}
-
-function saveCache(data) {
+async function loadCache() {
   try {
-    fs.writeFileSync(CACHE_PATH, JSON.stringify(data, null, 2), "utf-8");
-    console.log("✅ Cache written to file successfully.");
+    const res = await axios.get(JSONBIN_URL, {
+      headers: { "X-Master-Key": BIN_API_KEY }
+    });
+    return res.data.record || {};
   } catch (err) {
-    console.error("❌ Failed to write cache to file:", err.message);
+    console.error("❌ Error loading cache from JSONBin:", err.message);
+    return {};
   }
 }
+
+async function saveCache(data) {
+  try {
+    await axios.put(`${JSONBIN_URL}`, data, {
+      headers: {
+        "X-Master-Key": process.env.JSONBIN_API_KEY,
+        "X-Access-Key": process.env.JSONBIN_ACCESS_KEY, // ⬅️ new
+        "Content-Type": "application/json"
+      }
+    });
+    console.log("✅ Cache written to JSONBin successfully.");
+  } catch (err) {
+    console.error("❌ Failed to write cache to JSONBin:", err.response?.data || err.message);
+  }
+}
+
 
 async function fetchAllProducts() {
   const res = await axios.get(`https://${SHOP_DOMAIN}/admin/api/2024-04/products.json?limit=250`, {
     headers: { "X-Shopify-Access-Token": ADMIN_TOKEN }
   });
-  return res.data.products.map(p => ({
-    id: p.id,
-    handle: p.handle,
-  }));
+  return res.data.products.map(p => ({ id: p.id, handle: p.handle }));
 }
 
 async function fetchLatestReviewTimestamp(productHandle) {
@@ -41,15 +49,12 @@ async function fetchLatestReviewTimestamp(productHandle) {
     const productId = productRes.data.product.id;
 
     const res = await axios.get(`${PROXY_BASE_URL}/judgeme-reviews`, {
-      params: { product_id: productId },
+      params: { product_id: productId }
     });
 
     const reviews = res.data.reviews || [];
-    const fiveStar = reviews
-      .filter(r => r.rating >= 5)
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-    return fiveStar[0]?.created_at || null;
+    const sorted = reviews.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    return sorted[0]?.created_at || null;
   } catch (err) {
     console.error(`❌ Error fetching reviews for ${productHandle}:`, err.message);
     return null;
@@ -59,48 +64,37 @@ async function fetchLatestReviewTimestamp(productHandle) {
 async function generateSummary(productHandle) {
   try {
     const res = await axios.get(`${PROXY_BASE_URL}/review-summary`, {
-      params: { product_handle: productHandle },
+      params: { product_handle: productHandle }
     });
-
-    const summary = res.data.summary || [];
-
-    return Array.isArray(summary) ? summary.join(" ") : summary;
+    return res.data.summary || null;
   } catch (err) {
     console.error(`❌ Error generating summary for ${productHandle}:`, err.message);
     return null;
   }
 }
 
-// 4. Main script logic
 async function main() {
-  const cache = loadCache();
+  const cache = await loadCache();
   const products = await fetchAllProducts();
   console.log(`📦 Found ${products.length} products`);
 
-  for (const product of products) {
-    const { handle } = product;
+  for (const { handle } of products) {
     const cached = cache[handle];
     const cachedTimestamp = cached?.lastReviewedAt;
 
     console.log(`🔍 Checking ${handle}...`);
-
     const latestReviewAt = await fetchLatestReviewTimestamp(handle);
     if (!latestReviewAt) {
-      console.log(`⏩ No recent 5-star reviews for ${handle}, skipping.`);
+      console.log(`⏩ No reviews for ${handle}, skipping.`);
       continue;
     }
 
     const isNew = !cachedTimestamp || new Date(latestReviewAt) > new Date(cachedTimestamp);
-
     if (isNew) {
-      console.log(`✨ New review detected. Generating summary for ${handle}...`);
+      console.log(`✨ New review detected for ${handle}, generating summary...`);
       const summary = await generateSummary(handle);
-
       if (summary) {
-        cache[handle] = {
-          lastReviewedAt: latestReviewAt,
-          summary,
-        };
+        cache[handle] = { lastReviewedAt: latestReviewAt, summary };
         console.log(`✅ Updated summary for ${handle}`);
       } else {
         console.log(`⚠️ Failed to generate summary for ${handle}`);
@@ -110,9 +104,8 @@ async function main() {
     }
   }
 
-  saveCache(cache);
-  console.log("📝 Cache updated.");
+  await saveCache(cache);
+  console.log("📦 All summaries updated.");
 }
 
-// 5. Run it
 main();

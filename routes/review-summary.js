@@ -40,7 +40,7 @@ router.get("/review-summary", async (req, res) => {
         messages: [
           {
             role: "user",
-            content: `Summarize these 5-star customer reviews in 2-3 concise sentences max 50 words.
+            content: `Summarize these customer reviews in 2-3 concise sentences max 40 words.
 
             Capture what customers like most, mention any mixed or varied feedback briefly, and note overall impressions or typical uses. Write in a clear, neutral, and helpful style similar to Amazon review summaries, avoiding hype or vague praise.
 
